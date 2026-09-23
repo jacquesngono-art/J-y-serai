@@ -3,12 +3,22 @@ export const TEMPLATE_PDF = "/template.pdf"
 export const TEMPLATE_SRC = "/template.png"
 export const POSTER_SIZE = 1080
 
-// Cadre photo detecte dans le template (rectangle blanc)
+// Cadre photo du template : rectangle incline (-5,5 deg)
+// coin haut-gauche + dimensions dans le repere tourne
 export const PHOTO_FRAME = {
-  x: 238,
-  y: 226,
-  width: 581,
-  height: 603,
+  x: 50,
+  y: 277,
+  width: 427,
+  height: 601,
+  angle: -0.0958, // rad (~ -5.5 deg)
+}
+
+// Zone du nom : bandeau dore (partie lumineuse)
+export const NAME_ZONE = {
+  x: 584,
+  y: 626,
+  width: 436,
+  height: 114,
 }
 
 export function loadImage(src: string): Promise<HTMLImageElement> {
@@ -49,7 +59,7 @@ export async function loadTemplateFromPdf(url: string): Promise<HTMLCanvasElemen
   return canvas
 }
 
-// Dessine la photo en mode "cover" dans le cadre du template
+// Dessine la photo en mode "cover" dans le cadre incline du template
 function drawPhotoCover(
   ctx: CanvasRenderingContext2D,
   photo: HTMLImageElement,
@@ -58,52 +68,38 @@ function drawPhotoCover(
   const scale = Math.max(frame.width / photo.width, frame.height / photo.height)
   const w = photo.width * scale
   const h = photo.height * scale
-  const x = frame.x + (frame.width - w) / 2
-  const y = frame.y + (frame.height - h) / 2
 
   ctx.save()
+  ctx.translate(frame.x, frame.y)
+  ctx.rotate(frame.angle)
   ctx.beginPath()
-  ctx.rect(frame.x, frame.y, frame.width, frame.height)
+  ctx.rect(0, 0, frame.width, frame.height)
   ctx.clip()
-  ctx.drawImage(photo, x, y, w, h)
+  ctx.drawImage(photo, (frame.width - w) / 2, (frame.height - h) / 2, w, h)
   ctx.restore()
 }
 
 export const NAME_FONT_FAMILY = '"Praise", "Brush Script MT", cursive'
 
-// Bandeau avec le nom en bas du cadre photo (police script elegante)
-function drawNameBanner(ctx: CanvasRenderingContext2D, name: string) {
-  const frame = PHOTO_FRAME
-  const bannerHeight = 96
-  const y = frame.y + frame.height - bannerHeight
-
-  const gradient = ctx.createLinearGradient(0, y - 30, 0, y + bannerHeight)
-  gradient.addColorStop(0, "rgba(0, 0, 0, 0)")
-  gradient.addColorStop(0.35, "rgba(0, 0, 0, 0.55)")
-  gradient.addColorStop(1, "rgba(0, 0, 0, 0.85)")
+// Nom sur le bandeau dore, texte sombre centre
+function drawName(ctx: CanvasRenderingContext2D, name: string) {
+  const zone = NAME_ZONE
+  const cx = zone.x + zone.width / 2
+  const cy = zone.y + zone.height / 2
 
   ctx.save()
-  ctx.beginPath()
-  ctx.rect(frame.x, y - 30, frame.width, bannerHeight + 30)
-  ctx.clip()
-  ctx.fillStyle = gradient
-  ctx.fillRect(frame.x, y - 30, frame.width, bannerHeight + 30)
-
-  ctx.fillStyle = "#ffffff"
+  ctx.fillStyle = "#1c1502"
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
-  ctx.shadowColor = "rgba(0, 0, 0, 0.6)"
-  ctx.shadowBlur = 8
-  ctx.shadowOffsetY = 2
 
-  let fontSize = 56
+  let fontSize = 68
   ctx.font = `400 ${fontSize}px ${NAME_FONT_FAMILY}`
-  while (ctx.measureText(name).width > frame.width - 60 && fontSize > 20) {
+  while (ctx.measureText(name).width > zone.width - 30 && fontSize > 22) {
     fontSize -= 2
     ctx.font = `400 ${fontSize}px ${NAME_FONT_FAMILY}`
   }
 
-  ctx.fillText(name, frame.x + frame.width / 2, y + bannerHeight / 2 - 4)
+  ctx.fillText(name, cx, cy + 4)
   ctx.restore()
 }
 
@@ -124,8 +120,8 @@ export async function renderPoster(
 
   if (photo) {
     drawPhotoCover(ctx, photo, PHOTO_FRAME)
-    if (showName && name.trim()) {
-      drawNameBanner(ctx, name.trim())
-    }
+  }
+  if (showName && name.trim()) {
+    drawName(ctx, name.trim())
   }
 }

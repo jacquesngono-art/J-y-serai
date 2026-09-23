@@ -3,11 +3,10 @@
 import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { motion, AnimatePresence } from "framer-motion"
+import { ArrowLeft, ArrowRight, Camera, Check, Download, User } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Label } from "@/components/ui/label"
 import {
   addDoc,
   collection,
@@ -27,6 +26,29 @@ import {
   TEMPLATE_SRC,
 } from "@/lib/poster"
 
+const STEPS = [
+  {
+    id: "nom",
+    title: "Quel est votre nom ?",
+    subtitle: "Il apparaîtra sur le bandeau doré de votre affiche.",
+  },
+  {
+    id: "tel",
+    title: "Votre téléphone ?",
+    subtitle: "Optionnel — pour être recontacté (WhatsApp).",
+  },
+  {
+    id: "photo",
+    title: "Ajoutez votre photo",
+    subtitle: "Photo portrait de préférence — elle sera placée dans le cadre incliné.",
+  },
+  {
+    id: "poster",
+    title: "Votre affiche est prête",
+    subtitle: "Enregistrez votre participation ou téléchargez l'affiche.",
+  },
+]
+
 interface Registration {
   id: string
   nom: string
@@ -38,16 +60,18 @@ export default function ProfilePosterForm() {
   const photoRef = useRef<HTMLImageElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [step, setStep] = useState(0)
   const [nom, setNom] = useState("")
   const [telephone, setTelephone] = useState("")
   const [showName, setShowName] = useState(true)
-  const [hasPhoto, setHasPhoto] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [status, setStatus] = useState<{ type: "info" | "error" | "success"; text: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [registrations, setRegistrations] = useState<Registration[]>([])
 
+  const hasPhoto = photoRef.current !== null
+
   useEffect(() => {
-    // Convertit le PDF template en image cote client (repli sur le PNG)
     loadTemplateFromPdf(TEMPLATE_PDF)
       .catch(() => loadImage(TEMPLATE_SRC))
       .then((template) => {
@@ -58,10 +82,8 @@ export default function ProfilePosterForm() {
         console.error("Impossible de charger le template", err)
         setStatus({ type: "error", text: "Le template n'a pas pu être chargé." })
       })
-    // Re-dessine quand la police "Praise" est chargee
     document.fonts.load('56px "Praise"').then(() => redraw()).catch(() => {})
     document.fonts.ready.then(() => redraw()).catch(() => {})
-
     fetchRegistrations()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -69,7 +91,7 @@ export default function ProfilePosterForm() {
   useEffect(() => {
     redraw()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nom, showName, hasPhoto])
+  }, [nom, showName, step, photoPreview])
 
   const redraw = () => {
     if (!canvasRef.current || !templateRef.current) return
@@ -99,30 +121,31 @@ export default function ProfilePosterForm() {
     const url = URL.createObjectURL(file)
     loadImage(url).then((img) => {
       photoRef.current = img
-      setHasPhoto(true)
+      setPhotoPreview(url)
       setStatus(null)
     })
   }
 
   const slug = () => nom.trim().replace(/\s+/g, "-").toLowerCase() || "affiche"
 
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const handleDownloadPng = () => {
-    const canvas = canvasRef.current
-    if (!canvas || !hasPhoto) return
-    canvas.toBlob((blob) => {
-      if (!blob) return
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `je-serai-la-${slug()}.png`
-      a.click()
-      URL.revokeObjectURL(url)
+    canvasRef.current?.toBlob((blob) => {
+      if (blob) downloadBlob(blob, `je-serai-la-${slug()}.png`)
     }, "image/png")
   }
 
   const handleDownloadPdf = async () => {
     const canvas = canvasRef.current
-    if (!canvas || !hasPhoto) return
+    if (!canvas) return
     const { jsPDF } = await import("jspdf")
     const pdf = new jsPDF({
       orientation: "portrait",
@@ -137,12 +160,7 @@ export default function ProfilePosterForm() {
   const canvasToBlob = (): Promise<Blob | null> =>
     new Promise((resolve) => canvasRef.current?.toBlob(resolve, "image/png"))
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!hasPhoto) {
-      setStatus({ type: "error", text: "Ajoutez votre photo pour générer l'affiche." })
-      return
-    }
+  const handleSave = async () => {
     if (!isFirebaseConfigured || !db || !storage) {
       setStatus({
         type: "info",
@@ -150,7 +168,6 @@ export default function ProfilePosterForm() {
       })
       return
     }
-
     setIsSaving(true)
     setStatus(null)
     try {
@@ -170,7 +187,7 @@ export default function ProfilePosterForm() {
 
       setStatus({
         type: "success",
-        text: `Inscription enregistrée dans Firebase (réf. ${docRef.id}).`,
+        text: `Inscription enregistrée (réf. ${docRef.id}).`,
       })
       fetchRegistrations()
     } catch (err) {
@@ -181,135 +198,212 @@ export default function ProfilePosterForm() {
     }
   }
 
+  const canNext = step === 0 ? nom.trim() !== "" : step === 2 ? hasPhoto : true
+
+  const handleNext = () => {
+    if (step < STEPS.length - 1) {
+      setStep(step + 1)
+    } else {
+      handleSave()
+    }
+  }
+
+  const inputClass =
+    "w-full max-w-sm px-4 py-3 rounded-2xl border border-white/20 bg-white/5 text-white placeholder:text-white/40 text-sm outline-none focus:border-white/50 transition-colors text-center"
+
   return (
-    <div className="max-w-5xl mx-auto grid gap-6 md:grid-cols-2 items-start px-1 sm:px-0">
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Enregistrez votre participation</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Remplissez le formulaire, ajoutez votre photo et repartez avec votre affiche personnalisée.
-            </p>
-          </CardHeader>
-          <form onSubmit={handleSave}>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="nom">Nom complet :</Label>
-                <Input
-                  id="nom"
-                  value={nom}
-                  onChange={(e) => setNom(e.target.value)}
-                  placeholder="Ex : Marie Kouassi"
-                  autoComplete="name"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="telephone">Téléphone / WhatsApp :</Label>
-                <Input
-                  id="telephone"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel"
-                  value={telephone}
-                  onChange={(e) => setTelephone(e.target.value)}
-                  placeholder="Ex : +225 07 00 00 00 00"
-                />
-              </div>
-              <div>
-                <Label htmlFor="photo">Votre photo :</Label>
-                <Input
-                  id="photo"
+    <div className="min-h-[80vh] flex flex-col items-center justify-center">
+      {/* Logo */}
+      <div className="mb-8">
+        <img
+          src="/kog.png"
+          alt="Kingdom of Glory Ministry"
+          className="w-20 h-20 sm:w-24 sm:h-24 mx-auto drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]"
+        />
+        <p className="text-white/50 text-xs mt-2 text-center">
+          Vent de Gloire Supérieur — 29 sept au 04 oct 2026
+        </p>
+      </div>
+
+      {/* Progress dots */}
+      <div className="flex gap-2 mb-10">
+        {STEPS.map((s, i) => (
+          <div
+            key={s.id}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              i === step ? "w-8 bg-white" : i < step ? "w-2 bg-white/60" : "w-2 bg-white/20"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Title */}
+      <div className="text-center mb-10 max-w-2xl px-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">{STEPS[step].title}</h1>
+        <p className="text-white/60 text-sm sm:text-base">{STEPS[step].subtitle}</p>
+      </div>
+
+      {/* Step content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -40 }}
+          transition={{ duration: 0.25, ease: "easeOut" }}
+          className="w-full flex flex-col items-center"
+        >
+          {step === 0 && (
+            <input
+              value={nom}
+              onChange={(e) => setNom(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && canNext && handleNext()}
+              placeholder="Ex : Marie Kouassi"
+              autoComplete="name"
+              autoFocus
+              className={inputClass}
+            />
+          )}
+
+          {step === 1 && (
+            <input
+              value={telephone}
+              onChange={(e) => setTelephone(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleNext()}
+              placeholder="Ex : +237 6 97 60 66 69"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              autoFocus
+              className={inputClass}
+            />
+          )}
+
+          {step === 2 && (
+            <div className="flex flex-col items-center gap-3">
+              <label className="relative cursor-pointer group">
+                <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  className="hidden"
                   onChange={handlePhotoChange}
-                  required={!hasPhoto}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Photo portrait de préférence — elle sera ajustée au cadre.
-                </p>
-              </div>
+                {photoPreview ? (
+                  <img
+                    src={photoPreview}
+                    alt="Votre photo"
+                    className="w-32 h-32 rounded-full object-cover border-2 border-white/30"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-white/5 border-2 border-dashed border-white/20 flex items-center justify-center group-hover:border-white/50 transition-colors">
+                    <User className="w-10 h-10 text-white/40" />
+                  </div>
+                )}
+                <div className="absolute bottom-1 right-1 w-9 h-9 rounded-full bg-white text-[#050d1f] flex items-center justify-center shadow-lg">
+                  <Camera className="w-4 h-4" />
+                </div>
+              </label>
+              <p className="text-xs text-white/40">
+                {photoPreview ? "Touchez pour changer de photo" : "Touchez pour choisir une photo"}
+              </p>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="flex flex-col items-center gap-4 w-full px-4">
+              <canvas
+                ref={canvasRef}
+                className="w-full max-w-[320px] sm:max-w-[380px] rounded-lg shadow-2xl"
+              />
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="showName"
                   checked={showName}
                   onCheckedChange={(checked) => setShowName(checked === true)}
                 />
-                <Label htmlFor="showName" className="font-normal">
+                <Label htmlFor="showName" className="font-normal text-white/80 text-sm">
                   Afficher mon nom sur l'affiche
                 </Label>
               </div>
-              {status && (
-                <p
-                  className={`text-sm ${
-                    status.type === "error"
-                      ? "text-red-500"
-                      : status.type === "success"
-                        ? "text-green-600"
-                        : "text-muted-foreground"
-                  }`}
-                >
-                  {status.text}
-                </p>
-              )}
-            </CardContent>
-            <CardFooter className="flex flex-col gap-2">
-              <Button type="submit" disabled={isSaving || !hasPhoto} className="w-full">
-                {isSaving ? "Enregistrement..." : "Enregistrer"}
-              </Button>
-              <div className="flex gap-2 w-full">
-                <Button
+              <div className="flex gap-2">
+                <button
                   type="button"
-                  variant="outline"
                   onClick={handleDownloadPng}
-                  disabled={!hasPhoto}
-                  className="flex-1"
+                  className="px-4 py-2.5 rounded-full text-sm font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all flex items-center gap-2"
                 >
+                  <Download className="w-4 h-4" />
                   PNG
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant="outline"
                   onClick={handleDownloadPdf}
-                  disabled={!hasPhoto}
-                  className="flex-1"
+                  className="px-4 py-2.5 rounded-full text-sm font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all flex items-center gap-2"
                 >
+                  <Download className="w-4 h-4" />
                   PDF
-                </Button>
+                </button>
               </div>
-            </CardFooter>
-          </form>
-        </Card>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
 
-        {registrations.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Inscrits dans Firebase</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="text-sm space-y-1">
-                {registrations.map((r) => (
-                  <li key={r.id} className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                    {r.nom}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
+      {/* Status */}
+      {status && (
+        <p
+          className={`mt-6 text-sm text-center px-4 ${
+            status.type === "error"
+              ? "text-red-400"
+              : status.type === "success"
+                ? "text-green-400"
+                : "text-white/60"
+          }`}
+        >
+          {status.text}
+        </p>
+      )}
+
+      {/* Footer buttons */}
+      <div className="mt-12 flex flex-col items-center gap-4">
+        <div className="flex gap-3">
+          {step > 0 && (
+            <button
+              onClick={() => setStep(step - 1)}
+              className="px-6 py-3 rounded-full text-sm font-medium text-white/60 hover:text-white border border-white/20 hover:border-white/40 transition-all flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Retour
+            </button>
+          )}
+          <button
+            onClick={handleNext}
+            disabled={!canNext || isSaving}
+            className="px-6 py-3 rounded-full text-sm font-bold bg-white text-[#050d1f] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 disabled:opacity-40 disabled:hover:scale-100"
+          >
+            {isSaving ? (
+              "Enregistrement..."
+            ) : step < STEPS.length - 1 ? (
+              <>
+                Suivant
+                <ArrowRight className="w-4 h-4" />
+              </>
+            ) : (
+              <>
+                Enregistrer
+                <Check className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-2 md:sticky md:top-6">
-        <h2 className="text-sm font-medium text-center text-white/80">Aperçu de votre affiche</h2>
-        <canvas ref={canvasRef} className="w-full rounded-lg shadow-2xl" />
-        {!hasPhoto && (
-          <p className="text-xs text-center text-white/50">
-            Ajoutez une photo pour voir le résultat dans le cadre
-          </p>
-        )}
-      </div>
+      {/* Inscrits */}
+      {registrations.length > 0 && (
+        <p className="mt-10 text-xs text-white/40 text-center px-4">
+          Déjà inscrits : {registrations.map((r) => r.nom).join(" · ")}
+        </p>
+      )}
     </div>
   )
 }
