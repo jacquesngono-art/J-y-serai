@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Enregistrez votre participation et générez votre affiche personnalisée',
     start_url: '/',
     display: 'standalone',
-    background_color: '#050d1f',
-    theme_color: '#050d1f',
+    background_color: '#ffffff',
+    theme_color: '#059669',
     lang: 'fr',
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },

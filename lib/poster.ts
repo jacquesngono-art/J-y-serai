@@ -63,9 +63,10 @@ export async function loadTemplateFromPdf(url: string): Promise<HTMLCanvasElemen
 function drawPhotoCover(
   ctx: CanvasRenderingContext2D,
   photo: HTMLImageElement,
-  frame: typeof PHOTO_FRAME
+  frame: typeof PHOTO_FRAME,
+  zoom = 1
 ) {
-  const scale = Math.max(frame.width / photo.width, frame.height / photo.height)
+  const scale = Math.max(frame.width / photo.width, frame.height / photo.height) * zoom
   const w = photo.width * scale
   const h = photo.height * scale
 
@@ -108,7 +109,8 @@ export async function renderPoster(
   template: CanvasImageSource,
   photo: HTMLImageElement | null,
   name: string,
-  showName: boolean
+  showName: boolean,
+  zoom = 1
 ) {
   const ctx = canvas.getContext("2d")
   if (!ctx) return
@@ -119,7 +121,7 @@ export async function renderPoster(
   ctx.drawImage(template, 0, 0, POSTER_SIZE, POSTER_SIZE)
 
   if (photo) {
-    drawPhotoCover(ctx, photo, PHOTO_FRAME)
+    drawPhotoCover(ctx, photo, PHOTO_FRAME, zoom)
   }
   if (showName && name.trim()) {
     drawName(ctx, name.trim())
