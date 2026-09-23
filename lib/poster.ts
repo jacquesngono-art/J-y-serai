@@ -80,7 +80,7 @@ function drawPhotoCover(
   ctx.restore()
 }
 
-export const NAME_FONT_FAMILY = '"Praise", "Brush Script MT", cursive'
+export const NAME_FONT_FAMILY = 'Arial, sans-serif'
 
 // Nom sur le bandeau dore, texte sombre centre
 function drawName(ctx: CanvasRenderingContext2D, name: string) {
@@ -93,11 +93,11 @@ function drawName(ctx: CanvasRenderingContext2D, name: string) {
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
 
-  let fontSize = 68
-  ctx.font = `400 ${fontSize}px ${NAME_FONT_FAMILY}`
-  while (ctx.measureText(name).width > zone.width - 30 && fontSize > 22) {
+  let fontSize = 52
+  ctx.font = `700 ${fontSize}px ${NAME_FONT_FAMILY}`
+  while (ctx.measureText(name).width > zone.width - 30 && fontSize > 20) {
     fontSize -= 2
-    ctx.font = `400 ${fontSize}px ${NAME_FONT_FAMILY}`
+    ctx.font = `700 ${fontSize}px ${NAME_FONT_FAMILY}`
   }
 
   ctx.fillText(name, cx, cy + 4)

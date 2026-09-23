@@ -1,5 +1,5 @@
-const CACHE_NAME = 'je-serai-la-v1'
-const PRECACHE = ['/', '/template.png', '/fonts/praise.woff2', '/manifest.webmanifest']
+const CACHE_NAME = 'je-serai-la-v2'
+const PRECACHE = ['/', '/template.png', '/fonts/forte.ttf', '/manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

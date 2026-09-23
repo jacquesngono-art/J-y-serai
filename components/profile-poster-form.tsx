@@ -84,7 +84,6 @@ export default function ProfilePosterForm() {
         console.error("Impossible de charger le template", err)
         setStatus({ type: "error", text: "Le template n'a pas pu être chargé." })
       })
-    document.fonts.load('56px "Praise"').then(() => redraw()).catch(() => {})
     document.fonts.ready.then(() => redraw()).catch(() => {})
     fetchRegistrations()
     // eslint-disable-next-line react-hooks/exhaustive-deps

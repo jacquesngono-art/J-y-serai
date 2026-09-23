@@ -10,6 +10,14 @@
   src: url('/fonts/praise.woff2') format('woff2');
 }
 
+@font-face {
+  font-family: 'Forte';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/forte.ttf') format('truetype');
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
