@@ -16,23 +16,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Je Serai là — Inscription',
   description: 'Enregistrez votre participation et générez votre affiche personnalisée',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
-  },
 }
 
 export default function RootLayout({
