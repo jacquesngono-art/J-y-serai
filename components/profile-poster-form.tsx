@@ -67,15 +67,18 @@ export default function ProfilePosterForm() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [status, setStatus] = useState<{ type: "info" | "error" | "success"; text: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [templateReady, setTemplateReady] = useState(false)
   const [registrations, setRegistrations] = useState<Registration[]>([])
 
   const hasPhoto = photoRef.current !== null
 
   useEffect(() => {
-    loadTemplateFromPdf(TEMPLATE_PDF)
-      .catch(() => loadImage(TEMPLATE_SRC))
+    // PNG d'abord (leger), le PDF 38 Mo sert de repli
+    loadImage(TEMPLATE_SRC)
+      .catch(() => loadTemplateFromPdf(TEMPLATE_PDF))
       .then((template) => {
         templateRef.current = template
+        setTemplateReady(true)
         redraw()
       })
       .catch((err) => {
@@ -198,7 +201,8 @@ export default function ProfilePosterForm() {
     }
   }
 
-  const canNext = step === 0 ? nom.trim() !== "" : step === 2 ? hasPhoto : true
+  const canNext =
+    step === 0 ? nom.trim() !== "" : step === 2 ? hasPhoto : step === 3 ? templateReady : true
 
   const handleNext = () => {
     if (step < STEPS.length - 1) {
@@ -312,9 +316,12 @@ export default function ProfilePosterForm() {
 
           {step === 3 && (
             <div className="flex flex-col items-center gap-4 w-full px-4">
+              {!templateReady && (
+                <p className="text-white/60 text-sm animate-pulse">Chargement du template…</p>
+              )}
               <canvas
                 ref={canvasRef}
-                className="w-full max-w-[320px] sm:max-w-[380px] rounded-lg shadow-2xl"
+                className={`w-full max-w-[320px] sm:max-w-[380px] rounded-lg shadow-2xl ${templateReady ? "" : "opacity-0 h-0"}`}
               />
               <div className="flex items-center gap-2">
                 <Checkbox
@@ -330,7 +337,8 @@ export default function ProfilePosterForm() {
                 <button
                   type="button"
                   onClick={handleDownloadPng}
-                  className="px-4 py-2.5 rounded-full text-sm font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all flex items-center gap-2"
+                  disabled={!templateReady}
+                  className="px-4 py-2.5 rounded-full text-sm font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all flex items-center gap-2 disabled:opacity-40"
                 >
                   <Download className="w-4 h-4" />
                   PNG
@@ -338,7 +346,8 @@ export default function ProfilePosterForm() {
                 <button
                   type="button"
                   onClick={handleDownloadPdf}
-                  className="px-4 py-2.5 rounded-full text-sm font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all flex items-center gap-2"
+                  disabled={!templateReady}
+                  className="px-4 py-2.5 rounded-full text-sm font-medium text-white/80 hover:text-white border border-white/20 hover:border-white/40 transition-all flex items-center gap-2 disabled:opacity-40"
                 >
                   <Download className="w-4 h-4" />
                   PDF
