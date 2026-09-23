@@ -256,7 +256,7 @@ export default function ProfilePosterForm() {
             </CardContent>
             <CardFooter className="flex flex-col gap-2">
               <Button type="submit" disabled={isSaving || !hasPhoto} className="w-full">
-                {isSaving ? "Enregistrement..." : "Enregistrer dans Firebase"}
+                {isSaving ? "Enregistrement..." : "Enregistrer"}
               </Button>
               <div className="flex gap-2 w-full">
                 <Button
